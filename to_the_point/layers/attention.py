@@ -167,7 +167,7 @@ class Attention(nn.Module):
             XTX_reg = X_flat.T @ X_flat + reg * torch.eye(self.d_model, device=device)
             XTY = X_flat.T @ Y_flat
 
-            W_q_opt = torch.linalg.solve(XTX_reg, XTY).T
+            W_q_opt = torch.linalg.pinv(XTX_reg) @ XTY
             lr_q = self.learning_rates["q"]
             self.w_q.weight.data = (1 - lr_q) * self.w_q.weight.data + lr_q * W_q_opt
 
@@ -177,7 +177,7 @@ class Attention(nn.Module):
             self.w_k.weight.data = (1 - lr_k) * self.w_k.weight.data + lr_k * W_k_opt
 
             if self.batch_count > 1:
-                W_v_opt = torch.linalg.solve(XTX_reg, XTY).T
+                W_v_opt = torch.linalg.pinv(XTX_reg) @ XTY
                 lr_v = self.learning_rates["v"]
                 self.w_v.weight.data = (1 - lr_v) * self.w_v.weight.data + lr_v * W_v_opt
 
@@ -298,7 +298,7 @@ class Attention(nn.Module):
             XTY = X_flat.T @ Y_flat
 
             try:
-                W_opt = torch.linalg.solve(XTX, XTY).T
+                W_opt = torch.linalg.pinv(XTX) @ XTY
                 lr = 0.05
                 self.output_proj.weight.data = (
                     (1 - lr) * self.output_proj.weight.data + lr * W_opt
