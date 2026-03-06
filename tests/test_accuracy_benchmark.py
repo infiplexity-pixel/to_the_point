@@ -447,12 +447,12 @@ class TestImageNet:
         """DNN on ImageNet."""
         from to_the_point.utils.datasets import load_imagenet_data, load_imagenet_test_data
         
-        X_train, Y_train = load_imagenet_data(num_samples=500, flatten=True)
-        X_test, Y_test = load_imagenet_test_data(num_samples=100, flatten=True)
+        X_train, Y_train = load_imagenet_data(num_samples=500, flatten=True, img_size=64)
+        X_test, Y_test = load_imagenet_test_data(num_samples=100, flatten=True, img_size=64)
         X_train, X_test = X_train.float(), X_test.float()
         
         model = Model(
-            Linear(3*224*224, 512),
+            Linear(3*64*64, 512),
             Linear(512, 256),
             Linear(256, 100)
         )
@@ -467,14 +467,14 @@ class TestImageNet:
         """CNN on ImageNet."""
         from to_the_point.utils.datasets import load_imagenet_data, load_imagenet_test_data
         
-        X_train, Y_train = load_imagenet_data(num_samples=300, flatten=False)
-        X_test, Y_test = load_imagenet_test_data(num_samples=50, flatten=False)
+        X_train, Y_train = load_imagenet_data(num_samples=300, flatten=False, img_size=64)
+        X_test, Y_test = load_imagenet_test_data(num_samples=50, flatten=False, img_size=64)
         X_train, X_test = X_train.float(), X_test.float()
         
         model = Model(
-            Conv2d(3, 16, kernel_size=7, stride=2, padding=3),  # Reduce spatial size
+            Conv2d(3, 16, kernel_size=5, stride=2, padding=2),
             Flatten(),
-            Linear(16*112*112, 100)
+            Linear(16*32*32, 100)
         )
         
         model.fit(X_train, Y_train, batch_size=32, verbosity=False)
@@ -487,21 +487,21 @@ class TestImageNet:
         """Transformer on ImageNet."""
         from to_the_point.utils.datasets import load_imagenet_data, load_imagenet_test_data
         
-        X_train, Y_train = load_imagenet_data(num_samples=200, flatten=True)
-        X_test, Y_test = load_imagenet_test_data(num_samples=40, flatten=True)
+        X_train, Y_train = load_imagenet_data(num_samples=200, flatten=True, img_size=64)
+        X_test, Y_test = load_imagenet_test_data(num_samples=40, flatten=True, img_size=64)
         X_train, X_test = X_train.float(), X_test.float()
         
-        # Reshape to sequence: (N, 150528) -> (N, 588, 256) approximately
-        X_train_seq = X_train[:, :150528].reshape(-1, 588, 256)
-        X_test_seq = X_test[:, :150528].reshape(-1, 588, 256)
+        # Reshape to sequence: (N, 12288) -> (N, 48, 256)
+        X_train_seq = X_train.reshape(-1, 48, 256)
+        X_test_seq = X_test.reshape(-1, 48, 256)
         
         model = Model(
             Attention(d_model=256, n_heads=4),
             Flatten(),
-            Linear(588*256, 100)
+            Linear(48*256, 100)
         )
         
-        model.fit(X_train_seq, Y_train, batch_size=8, verbosity=False)
+        model.fit(X_train_seq, Y_train, batch_size=16, verbosity=False)
         preds = model(X_test_seq)
         accuracy = (preds.argmax(1) == Y_test.argmax(1)).float().mean().item()
         
@@ -511,13 +511,13 @@ class TestImageNet:
         """LSTM-style DNN on ImageNet."""
         from to_the_point.utils.datasets import load_imagenet_data, load_imagenet_test_data
         
-        X_train, Y_train = load_imagenet_data(num_samples=200, flatten=True)
-        X_test, Y_test = load_imagenet_test_data(num_samples=40, flatten=True)
+        X_train, Y_train = load_imagenet_data(num_samples=200, flatten=True, img_size=64)
+        X_test, Y_test = load_imagenet_test_data(num_samples=40, flatten=True, img_size=64)
         X_train, X_test = X_train.float(), X_test.float()
         
         # Multi-layer DNN architecture
         model = Model(
-            Linear(150528, 512),
+            Linear(3*64*64, 512),
             Linear(512, 256),
             Linear(256, 128),
             Linear(128, 100)
@@ -533,13 +533,13 @@ class TestImageNet:
         """RNN-style DNN on ImageNet."""
         from to_the_point.utils.datasets import load_imagenet_data, load_imagenet_test_data
         
-        X_train, Y_train = load_imagenet_data(num_samples=200, flatten=True)
-        X_test, Y_test = load_imagenet_test_data(num_samples=40, flatten=True)
+        X_train, Y_train = load_imagenet_data(num_samples=200, flatten=True, img_size=64)
+        X_test, Y_test = load_imagenet_test_data(num_samples=40, flatten=True, img_size=64)
         X_train, X_test = X_train.float(), X_test.float()
         
         # Multi-layer DNN architecture
         model = Model(
-            Linear(150528, 256),
+            Linear(3*64*64, 256),
             Linear(256, 128),
             Linear(128, 100)
         )
@@ -554,13 +554,13 @@ class TestImageNet:
         """GRU-style DNN on ImageNet."""
         from to_the_point.utils.datasets import load_imagenet_data, load_imagenet_test_data
         
-        X_train, Y_train = load_imagenet_data(num_samples=200, flatten=True)
-        X_test, Y_test = load_imagenet_test_data(num_samples=40, flatten=True)
+        X_train, Y_train = load_imagenet_data(num_samples=200, flatten=True, img_size=64)
+        X_test, Y_test = load_imagenet_test_data(num_samples=40, flatten=True, img_size=64)
         X_train, X_test = X_train.float(), X_test.float()
         
         # Multi-layer DNN architecture
         model = Model(
-            Linear(150528, 512),
+            Linear(3*64*64, 512),
             Linear(512, 256),
             Linear(256, 128),
             Linear(128, 100)

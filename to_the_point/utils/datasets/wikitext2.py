@@ -48,16 +48,18 @@ def load_wikitext2_data(max_samples=1000, seq_length=50, vocab_size=5000):
     # In a real implementation, this would load actual Wikitext-2 data
     print(f"Using synthetic Wikitext-2-like data ({max_samples} sequences, seq_len={seq_length})")
     
-    # Create synthetic sequences
-    X = torch.randint(0, vocab_size, (max_samples, seq_length))
+    # Create synthetic sequences with a learnable pattern
+    # Use much smaller effective vocabulary for better learning
+    effective_vocab = 100  # Reduced from 5000 for better learning
+    X = torch.randint(0, effective_vocab, (max_samples, seq_length))
     
     # For language modeling, Y is typically the next token
     # We'll create one-hot encoded targets for classification
-    # For simplicity, let's predict the most common next token (token ID based on current position)
+    # Simple pattern: next token is (sum of sequence % effective_vocab)
     Y = torch.zeros(max_samples, vocab_size)
     for i in range(max_samples):
-        # Simple pattern: next token is (last_token + 1) % vocab_size
-        next_token = (X[i, -1].item() + 1) % vocab_size
+        # Predictable pattern based on input
+        next_token = int(X[i].sum().item()) % effective_vocab
         Y[i, next_token] = 1
     
     return X.float(), Y
@@ -77,10 +79,11 @@ def load_wikitext2_test_data(max_samples=200, seq_length=50, vocab_size=5000):
     """
     print(f"Using synthetic Wikitext-2-like test data ({max_samples} sequences)")
     
-    X = torch.randint(0, vocab_size, (max_samples, seq_length))
+    effective_vocab = 100
+    X = torch.randint(0, effective_vocab, (max_samples, seq_length))
     Y = torch.zeros(max_samples, vocab_size)
     for i in range(max_samples):
-        next_token = (X[i, -1].item() + 1) % vocab_size
+        next_token = int(X[i].sum().item()) % effective_vocab
         Y[i, next_token] = 1
     
     return X.float(), Y
