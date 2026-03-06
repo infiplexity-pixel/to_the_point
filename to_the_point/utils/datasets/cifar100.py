@@ -35,15 +35,15 @@ def load_cifar100_test_data():
             ),
         ]
     )
-    trainset = list(
+    testset = list(
         torchvision.datasets.CIFAR100(
             root="./data", train=False, download=True, transform=transform
         )
     )
 
-    X = torch.stack([x for x, y in trainset]).reshape(-1, 3, 32, 32)
+    X = torch.stack([x for x, y in testset]).reshape(-1, 3, 32, 32)
     N = X.shape[0]
     Y = torch.zeros(N, 100)
-    for i, (x, y) in enumerate(trainset):
+    for i, (x, y) in enumerate(testset):
         Y[i, y] = 1
     return X, Y
