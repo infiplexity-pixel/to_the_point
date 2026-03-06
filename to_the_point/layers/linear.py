@@ -147,3 +147,9 @@ class Linear(torch.nn.Module):
 
     def __repr__(self):
         return f"Linear({self.in_features}, {self.out_features})"
+    
+    def __del__(self):
+        del self.weight
+        del self.bias
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()

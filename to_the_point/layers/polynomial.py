@@ -432,3 +432,17 @@ class Polynomial(torch.nn.Module):
         return self.forward_chunked(X)
 
     create_polynomial_features = create_polynomial_features_chunked
+
+    def __del__(self):
+        if self.S is not None:
+            del self.S
+        if self.phiT_phi is not None:
+            del self.phiT_phi
+        if self.phiT_Y is not None:
+            del self.phiT_Y
+        if self.phi_sum is not None:
+            del self.phi_sum
+        if self.Y_sum is not None:
+            del self.Y_sum
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
