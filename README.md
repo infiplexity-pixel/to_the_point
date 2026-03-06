@@ -25,6 +25,10 @@
 ```bash
 pip install -e .
 ```
+or
+```bash
+pip install git+https://github.com/infiplexity-pixel/to_the_point
+```
 
 ```python
 import torch
