@@ -149,7 +149,10 @@ class Linear(torch.nn.Module):
         return f"Linear({self.in_features}, {self.out_features})"
     
     def __del__(self):
-        del self.weight
-        del self.bias
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        try:
+            del self.weight
+            del self.bias
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except:
+            pass

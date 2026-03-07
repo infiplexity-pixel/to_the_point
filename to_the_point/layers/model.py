@@ -187,10 +187,13 @@ class Model(torch.nn.Module):
         return f"{self.layers}"
 
     def __del__(self):
-        for layer in self.layers:
-            del layer
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        try:
+            for layer in self.layers:
+                del layer
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except:
+            pass
 
 class Residual(Model):
     """Model with a residual (skip) connection."""
