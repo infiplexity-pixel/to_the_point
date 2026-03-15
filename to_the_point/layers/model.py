@@ -17,7 +17,7 @@ class Model(torch.nn.Module):
         super().__init__()
         self.layers = torch.nn.ModuleList(layers)
 
-    def forward(self, x):
+    def forward(self, x, *args):
         for layer in self.layers:
             x = layer.forward(x)
         return x
@@ -117,7 +117,7 @@ class Model(torch.nn.Module):
         num_batches = (num_samples + batch_size - 1) // batch_size
 
         with torch.no_grad():
-            test_output = layer.forward(X[:1])
+            test_output = layer.forward(X[:1], no_stack=True)
             output_shape = test_output.shape[1:]
             output_dtype = test_output.dtype
             output_device = test_output.device
@@ -198,7 +198,7 @@ class Model(torch.nn.Module):
 class Residual(Model):
     """Model with a residual (skip) connection."""
 
-    def forward(self, x):
+    def forward(self, x, *args, **kwargs):
         out = super().forward(x)
         out += x @ torch.eye(x.shape[-1], out.shape[-1], device=x.device)
         return out
@@ -207,12 +207,12 @@ class Residual(Model):
 class Dense(Linear):
     """Linear layer followed by ReLU activation."""
 
-    def forward(self, x):
+    def forward(self, x, *args, **kwargs):
         return torch.nn.functional.relu(super().forward(x))
 
 
 class Flatten(AnalyticalBase):
     """Flatten all dimensions except the batch dimension."""
 
-    def forward(self, x):
+    def forward(self, x, *args, **kwargs):
         return x.reshape(x.shape[0], -1)

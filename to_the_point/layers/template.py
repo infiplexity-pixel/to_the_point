@@ -11,7 +11,7 @@ class AnalyticalBase(torch.nn.Module):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def forward(self, x):
+    def forward(self, x, *args, **kwargs):
         return x
 
     def fit_batch(self, *args, **kwargs):

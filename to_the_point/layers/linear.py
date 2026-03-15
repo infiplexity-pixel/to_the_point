@@ -41,7 +41,7 @@ class Linear(torch.nn.Module):
     # ------------------------------------------------------------------
     # Forward
     # ------------------------------------------------------------------
-    def forward(self, x):
+    def forward(self, x, *args, **kwargs):
         if x.shape[-1] != self.in_features and self.S is not None:
             x = x @ self.S
 

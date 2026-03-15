@@ -10,7 +10,7 @@ def torch_to_analytical(func: Callable):
     """
 
     class NonLinear(torch.nn.Module):
-        def forward(self, x):
+        def forward(self, x, *args, **kwargs):
             return func(x)
 
         def fit_batch(self, *args, **kwargs):
