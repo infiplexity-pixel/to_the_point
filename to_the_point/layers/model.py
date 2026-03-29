@@ -117,7 +117,7 @@ class Model(torch.nn.Module):
         num_batches = (num_samples + batch_size - 1) // batch_size
 
         with torch.no_grad():
-            test_output = layer.forward(X[:1], no_stack=True)
+            test_output = layer.forward(X[:1])
             output_shape = test_output.shape[1:]
             output_dtype = test_output.dtype
             output_device = test_output.device

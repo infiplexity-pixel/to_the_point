@@ -428,7 +428,7 @@ class Polynomial(torch.nn.Module):
                 device=phi.device, dtype=phi.dtype
             ) + self.bias.to(device=phi.device, dtype=phi.dtype)
 
-    def forward(self, X: torch.Tensor) -> torch.Tensor:
+    def forward(self, X: torch.Tensor, *args, **kwargs) -> torch.Tensor:
         return self.forward_chunked(X)
 
     create_polynomial_features = create_polynomial_features_chunked

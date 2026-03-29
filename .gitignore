@@ -15,3 +15,11 @@ data/
 .venv/
 venv/
 env/
+*.pt
+consolidate.py
+codebase.py
+dld_solver.py
+erbf
+mathjax.js
+test.py
+downloaded_files/
