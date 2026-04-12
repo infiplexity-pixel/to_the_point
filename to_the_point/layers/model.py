@@ -117,7 +117,10 @@ class Model(torch.nn.Module):
         num_batches = (num_samples + batch_size - 1) // batch_size
 
         with torch.no_grad():
-            test_output = layer.forward(X[:1])
+            try:
+                test_output = layer.forward(X[:1])
+            except:
+                test_output = X
             output_shape = test_output.shape[1:]
             output_dtype = test_output.dtype
             output_device = test_output.device
@@ -202,7 +205,6 @@ class Residual(Model):
         out = super().forward(x)
         out += x @ torch.eye(x.shape[-1], out.shape[-1], device=x.device)
         return out
-
 
 class Dense(Linear):
     """Linear layer followed by ReLU activation."""

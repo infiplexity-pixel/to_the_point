@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class Conv2d(nn.Module):
 
     def __init__(
@@ -9,7 +10,8 @@ class Conv2d(nn.Module):
         in_channels,
         out_channels,
         kernel_size,
-        padding=0
+        padding=0,
+        device="cpu",
     ):
         super().__init__()
 
@@ -20,24 +22,26 @@ class Conv2d(nn.Module):
         self.out_channels = out_channels
         self.kernel_size = kernel_size
         self.padding = padding
+        self.device = device
+        self.S = None
 
         k_h, k_w = kernel_size
 
         self.weight = nn.Parameter(
-            torch.randn(
+            torch.zeros(
                 out_channels,
                 in_channels,
                 k_h,
-                k_w
+                k_w,
+                device=device
             )
         )
 
         self.bias = nn.Parameter(
-            torch.zeros(out_channels)
+            torch.zeros(out_channels, device=device)
         )
 
         self.reset_accumulators()
-        self.S = None
 
     ########################################
 
@@ -45,22 +49,21 @@ class Conv2d(nn.Module):
 
         k_h, k_w = self.kernel_size
 
-        R_size_h = 2*k_h - 1
-        R_size_w = 2*k_w - 1
+        self.size = self.in_channels * k_h * k_w
 
         self.R_xx = torch.zeros(
-            self.in_channels,
-            self.in_channels,
-            R_size_h,
-            R_size_w
+            self.size,
+            self.size,
+            device=self.weight.device
         )
 
         self.R_xy = torch.zeros(
             self.out_channels,
-            self.in_channels,
-            k_h,
-            k_w
+            self.size,
+            device=self.weight.device
         )
+
+    ########################################
     def _compute_output_size(self, input_size):
         """
         Compute output size given input size (H or W).
@@ -71,150 +74,105 @@ class Conv2d(nn.Module):
         Returns:
             output_size: Height or width of output
         """
-        return ((input_size + 2 * self.padding * (self.kernel_size[0] - 1) - 1)
-                // 1 + 1)
-
-    ########################################
-
+        return ((input_size + 2 * self.padding - self.kernel_size[0]) // 1 + 1)
     def fit_batch(self, x, y, *args, **kwargs):
 
-        B = x.shape[0]
-        if y.shape != (x.shape[0], self.out_channels, self._compute_output_size(x.shape[-2]), self._compute_output_size(x.shape[-1])):
+        # Handle target projection if needed
+        target_h = self._compute_output_size(x.shape[-2])
+        target_w = self._compute_output_size(x.shape[-1])
+        
+        if y.shape != (x.shape[0], self.out_channels, target_h, target_w):
+            y = y[:, :, None, None]
             if self.S is None:
-                self.S = torch.randn(y.shape[-1], self.out_channels*self._compute_output_size(x.shape[-2])*self._compute_output_size(x.shape[-1]), device=y.device, dtype=y.dtype)
-            y = y @ self.S
-            y = y.reshape(x.shape[0], self.out_channels, self._compute_output_size(x.shape[-2]), self._compute_output_size(x.shape[-1]))
+                self.S = torch.randn(
+                    y.shape[1], self.out_channels, target_h, target_w,
+                    device=y.device, dtype=y.dtype
+                )
+            y = F.conv_transpose2d(y, self.S, stride=(target_h, target_w), padding=0)
         k_h, k_w = self.kernel_size
+        x_pad = F.pad(
+            x,
+            (self.padding,
+             self.padding,
+             self.padding,
+             self.padding)
+        )
 
-        pad = (k_h - 1, k_w - 1)
+        ################################
+        # accumulate statistics
+        ################################
+        from tqdm import tqdm
+        for b in (tqdm(range(x.shape[0]), desc="Accumulating Conv2d statistics, this may take a while...")) if x.shape[0] > 1_000 else range(x.shape[0]):
 
-        for b in range(B):
-
-            xb = x[b]
+            xb = x_pad[b]
             yb = y[b]
 
-            ################################
-            # R_xx accumulation
-            ################################
+            for h in range(target_h):
+                for w in range(target_w):
 
-            for ic1 in range(self.in_channels):
-                for ic2 in range(self.in_channels):
+                    patch = xb[
+                        :,
+                        h:h+k_h,
+                        w:w+k_w
+                    ].reshape(-1)
 
-                    auto = F.conv2d(
-                        xb[ic1:ic1+1]
-                        .unsqueeze(0),
+                    y_vec = yb[
+                        :,
+                        h,
+                        w
+                    ]
 
-                        xb[ic2:ic2+1]
-                        .flip(-1,-2)
-                        .unsqueeze(0),
+                    self.R_xx += torch.outer(
+                        patch,
+                        patch
+                    )
 
-                        padding=pad
-                    )[0,0]
+                    self.R_xy += torch.outer(
+                        y_vec,
+                        patch
+                    )
 
-                    self.R_xx[
-                        ic1,
-                        ic2
-                    ] += auto
-
-            ################################
-            # R_xy accumulation
-            ################################
-
-            for oc in range(self.out_channels):
-                for ic in range(self.in_channels):
-
-                    cross = F.conv2d(
-                        xb[ic:ic+1]
-                        .unsqueeze(0),
-
-                        yb[oc:oc+1]
-                        .flip(-1,-2)
-                        .unsqueeze(0),
-
-                        padding=self.kernel_size[0]-1
-                    )[0,0]
-
-                    self.R_xy[
-                        oc,
-                        ic
-                    ] += cross
 
     ########################################
 
-    def finalize_fit(self, regularization=1e-6, *args, **kwargs):
-
-        C_in = self.in_channels
-        C_out = self.out_channels
+    def finalize_fit(
+        self,
+        regularization=1e-6,
+        *args,
+        **kwargs
+    ):
 
         k_h, k_w = self.kernel_size
 
-        center_h = self.R_xx.shape[2] // 2
-        center_w = self.R_xx.shape[3] // 2
+        A = self.R_xx.clone()
 
-        size = C_in * k_h * k_w
-
-        ################################
-        # Build convolution matrix
-        ################################
-
-        A = torch.zeros(size, size)
-
-        row = 0
-
-        for ic1 in range(C_in):
-            for i in range(k_h):
-                for j in range(k_w):
-
-                    col = 0
-
-                    for ic2 in range(C_in):
-                        for u in range(k_h):
-                            for v in range(k_w):
-
-                                di = i - u
-                                dj = j - v
-
-                                A[row, col] = self.R_xx[
-                                    ic1,
-                                    ic2,
-                                    center_h + di,
-                                    center_w + dj
-                                ]
-
-                                col += 1
-
-                    row += 1
-
-        ################################
-        # Solve per output channel
-        ################################
-
-        A += regularization * torch.eye(size)
-
-        A_pinv = torch.linalg.pinv(A)
-
-        W_est = torch.zeros(
-            C_out,
-            C_in,
-            k_h,
-            k_w
+        # regularization (critical)
+        A += regularization * torch.eye(
+            self.size,
+            device=A.device
         )
 
-        for oc in range(C_out):
+        A_inv = torch.linalg.pinv(A)
 
-            b = self.R_xy[oc].reshape(-1)
+        W = torch.zeros(
+            self.out_channels,
+            self.in_channels,
+            k_h,
+            k_w,
+            device=A.device
+        )
 
-            w_vec = A_pinv @ b
+        for oc in range(self.out_channels):
 
-            W_est[oc] = w_vec.reshape(
-                C_in,
+            w_vec = A_inv @ self.R_xy[oc]
+
+            W[oc] = w_vec.reshape(
+                self.in_channels,
                 k_h,
                 k_w
             )
 
-        self.weight.data = W_est
-
-        self.reset_accumulators()
+        self.weight.data = W
 
         return self.weight.data
 

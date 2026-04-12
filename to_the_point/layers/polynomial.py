@@ -17,10 +17,10 @@ class Polynomial(torch.nn.Module):
         in_features: int,
         out_features: int,
         n_degree: int = 3,
-        device: str = "cpu",
         n_components: int = 128,
         max_cross_terms: int = 512,
         use_cross_terms: bool = True,
+        device: str = "cpu",
         alpha: float = 1e-4,
         max_chunk_size: int = 1000,
         max_samples_per_chunk: int = 10000,
@@ -50,9 +50,9 @@ class Polynomial(torch.nn.Module):
             "min_power": 1,
             "max_power": n_degree,
             "cross_terms": use_cross_terms,
-            "interaction_depth": min(
-                4, max(2, int(np.log2(max_cross_terms // max(n_components, 1))))
-            ),
+            "interaction_depth": int(min(
+                4, max(2, (np.log2(max_cross_terms // max(n_components, 1))))
+            )),
             "max_cross_terms": max_cross_terms,
             "use_sqrt": True,
         }
