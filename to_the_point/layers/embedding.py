@@ -155,7 +155,7 @@ class Embedding(torch.nn.Module):
 
         mask = counts > 0
         if mask.any():
-            self.W[mask] /= counts[mask].unsqueeze(1)
+            self.W.data[mask] /= counts[mask].unsqueeze(1)
 
         if (
             self.use_positional
